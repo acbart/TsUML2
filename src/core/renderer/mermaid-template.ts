@@ -5,6 +5,7 @@ import { TsUML2Settings } from '../tsuml2-settings';
 import { Template } from './template';
 export class  MermaidTemplate implements Template {
     public readonly composition = "+->";
+    public readonly dependency = "-->";
 
     constructor(private settings: TsUML2Settings) {}
 

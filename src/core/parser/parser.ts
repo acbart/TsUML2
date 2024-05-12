@@ -17,6 +17,7 @@ export function parseClasses(classDeclaration: SimpleAST.ClassDeclaration) {
     const className = getClassOrInterfaceName(classDeclaration) || "undefined";
     const propertyDeclarations = classDeclaration.getProperties();
     const methodDeclarations = classDeclaration.getMethods();
+    const constructorDeclarations = classDeclaration.getConstructors();
     const ctors = classDeclaration.getConstructors();
 
     const sourceFile = classDeclaration.getSourceFile();
@@ -41,8 +42,10 @@ export function parseClasses(classDeclaration: SimpleAST.ClassDeclaration) {
     }
 
     const methods = methodDeclarations.map(parseMethod).filter((p) => p !== undefined) as MethodDetails[];
+    const constructors = constructorDeclarations.map(parseMethod).filter((p) => p !== undefined) as MethodDetails[];
+    const methodsAndCtors = [...methods, ...constructors];
 
-    return new Clazz({ name: className, properties, methods, id, heritageClauses: parseClassHeritageClauses(classDeclaration) });
+    return new Clazz({ name: className, properties, methods: methodsAndCtors, id, heritageClauses: parseClassHeritageClauses(classDeclaration) });
 }
 
 export function parseInterfaces(interfaceDeclaration: SimpleAST.InterfaceDeclaration) {
@@ -118,16 +121,40 @@ function parseProperty(propertyDeclaration: SimpleAST.PropertyDeclaration | Simp
 
 }
 
-function parseMethod(methodDeclaration: SimpleAST.MethodDeclaration | SimpleAST.MethodSignature) : MethodDetails | undefined{
+function demangleName(name: string) {
+    if (name.startsWith("__")) {
+        return name.slice(2);
+    }
+    return name;
+}
+
+function parseMethod(methodDeclaration: SimpleAST.MethodDeclaration | SimpleAST.MethodSignature | SimpleAST.ConstructorDeclaration) : MethodDetails | undefined{
     const sym = methodDeclaration.getSymbol();
     if (sym) {
+        let name = demangleName(sym.getName());
+
+        let uses: string[] = [];
+        // methodDeclaration.getLocals().forEach(local => console.log(local));
+        methodDeclaration.getDescendantsOfKind(SimpleAST.SyntaxKind.TypeReference).forEach(id => {
+            //uses.push(getTypeIdFromTypeName(id.getSourceFile(), id.getText()))
+            uses.push(getTypeIdsFromType(id.getType())?.[0]!);
+        });
+        methodDeclaration.getDescendantsOfKind(SimpleAST.SyntaxKind.NewExpression).forEach(newExp => {
+            //uses.push(getTypeIdFromTypeName(newExp.getSourceFile(), newExp.getExpression().getText()))
+            uses.push(getTypeIdsFromType(newExp.getType())?.[0]!);
+        });
+
+        uses = [...new Set(uses)];
+
         return {
+            uses,
             modifierFlags: methodDeclaration.getCombinedModifierFlags(),
-            name: sym.getName(),
+            name,
             returnType: getMethodReturnTypeName(methodDeclaration),
         }
     }
 }
+
 
 export function parseEnum(enumDeclaration: SimpleAST.EnumDeclaration) {
     const enumName = enumDeclaration.getSymbol()!.getName();
@@ -161,7 +188,7 @@ export function parseClassHeritageClauses(classDeclaration: SimpleAST.ClassDecla
 
     if (className && baseClass) {
         const baseClassName = getClassOrInterfaceName(baseClass);
-        if(baseClassName) {
+        if(baseClassName && baseClassName !== "EzComponent") {
             heritageClauses.push({
                         clause: baseClassName,
                         clauseTypeId: getFullyQualifiedNameNormalized(baseClass.getSymbol())!,
@@ -237,7 +264,7 @@ function getPropertyTypeName(propertySymbol: SimpleAST.Symbol) {
     return getTypeAsString(t);
 }
 
-function getMethodReturnTypeName(method: SimpleAST.MethodSignature | SimpleAST.MethodDeclaration) {
+function getMethodReturnTypeName(method: SimpleAST.MethodSignature | SimpleAST.MethodDeclaration | SimpleAST.ConstructorDeclaration) {
     return getTypeAsString(method.getReturnType());
 }
 

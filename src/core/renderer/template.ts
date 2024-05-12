@@ -2,6 +2,7 @@ import { MemberAssociation, MethodDetails, PropertyDetails } from "../model"
 
 export type Template = {
     composition: string,
+    dependency: string,
     implements: (interf: string, implementation: string) => string,
     extends: (base: string, derived: string) => string,
     plainClassOrInterface: (name: string) => string,

@@ -8,7 +8,7 @@ export interface MemberDetails {
 }
 
 export interface MethodDetails extends MemberDetails{
- 
+    uses: string[];
     returnType?: string;
     returnTypeIds?: string[];
 }
@@ -123,9 +123,14 @@ export class Enum extends NamedType {
 }
 
 
-
+/**
+ * Association - a relationship between two classes
+ * Dependency - a relationship between two classes where one class uses the other
+ * Aggregation - a relationship between two classes where one class is a part of the other
+ * Composition - a relationship between two classes where one class is a part of the other and the part cannot exist without the whole
+ */
 export enum AssociationType {
-    Association
+    Association, Dependency, Aggregation, Composition
 }
 export class MemberAssociation {
     constructor(
@@ -135,10 +140,12 @@ export class MemberAssociation {
         public inerhited = false) {}
 }
 
+export type Multiplicity = "0..*" | "1" | "0..1" | "1..*" | undefined;
+
 export interface AssociationEnd {
     typeId: string;
     name:string
-    multiplicity?: "0..*"|undefined;
+    multiplicity?: Multiplicity;
 }
 
 

@@ -1,6 +1,6 @@
 
 import { VariableDeclarationList } from "ts-morph";
-import { TypeAlias, Clazz, Interface, FileDeclaration, MemberAssociation, PropertyDetails, Enum } from "../model";
+import { TypeAlias, Clazz, Interface, FileDeclaration, MemberAssociation, PropertyDetails, Enum, AssociationType, MethodDetails, Multiplicity } from "../model";
 
 export function parseAssociations(declarations: FileDeclaration[]) {
     const associationMap: Map<string, MemberAssociation> = new Map();
@@ -33,14 +33,16 @@ function createTypeMap(declarations: FileDeclaration[]) {
 }
 
 
+const seen: Record<string, boolean> = {};
 function parseAssociationOfAnyType(t: Clazz | Interface | TypeAlias, associationMap: Map<string, MemberAssociation>, typeMap: Map<string, Clazz|Enum>) {
     const associations: MemberAssociation[] = [];
-    t.properties.filter(prop => prop.typeIds.length > 0).forEach(prop => {
-        prop.typeIds.forEach(id => {
-            const assId = `${t.id}_${id}`;
-            const reverseId = `${id}_${t.id}`
-            let ass = associationMap.get(reverseId);
-            if(!ass) {
+    const parseAssociation = (id: string, multiplicity: Multiplicity, assType: AssociationType) => {
+        const assId = `${t.id}_${id}`;
+        const reverseId = `${id}_${t.id}`
+        let ass = associationMap.get(reverseId);
+        if(!ass) {
+            if (!associationMap.has(assId)) {
+                seen[reverseId] = true;
                 const propType = typeMap.get(id);
                 if(!propType) {
                     return;
@@ -48,24 +50,33 @@ function parseAssociationOfAnyType(t: Clazz | Interface | TypeAlias, association
                 
                 ass = new MemberAssociation(
                     { typeId: t.id, name: t.name},
-                    { typeId: id, name: propType.name, multiplicity: getMultiplicityOfProp(prop) });
+                    { typeId: id, name: propType.name, multiplicity: multiplicity},
+                    assType
+                );
                 associationMap.set(assId, ass);
                 associations.push(ass);
-            } else {
-                createReverseAssociation(ass, prop);
             }
-        })
+        } else {
+            createReverseAssociation(ass, multiplicity);
+        }
+    }
+
+    t.methods.filter(m => m.uses.length > 0).forEach(m => {
+        m.uses.forEach(id => parseAssociation(id, getMultiplicityOfProp(m.returnType), AssociationType.Dependency));
+    });
+    t.properties.filter(prop => prop.typeIds.length > 0).forEach(prop => {
+        prop.typeIds.forEach(id => parseAssociation(id, getMultiplicityOfProp(prop.type), AssociationType.Association))
     })
     return associations;
 }
 
 
-function createReverseAssociation(association: MemberAssociation, prop: PropertyDetails) {
-    association.a.multiplicity = getMultiplicityOfProp(prop);
+function createReverseAssociation(association: MemberAssociation, multiplicity: Multiplicity) {
+    association.a.multiplicity = multiplicity;
 }
 
-function getMultiplicityOfProp(prop: PropertyDetails) {
-    if(prop.type && prop.type.includes("[")) {
+function getMultiplicityOfProp(prop: string | undefined): Multiplicity {
+    if(prop && prop.includes("[")) {
         return '0..*'
     } 
     return undefined;

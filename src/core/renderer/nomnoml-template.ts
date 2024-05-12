@@ -1,10 +1,11 @@
-import { PropertyDetails, MethodDetails, MemberAssociation} from "../model";
+import { PropertyDetails, MethodDetails, MemberAssociation, AssociationType} from "../model";
 import { ModifierFlags } from "typescript";
 import { TsUML2Settings } from "../tsuml2-settings";
 import { Template } from "./template";
 
 export class NomnomlTemplate implements Template {
     public readonly composition = "+->";
+    public readonly dependency = "-->";
 
     constructor(private settings: TsUML2Settings) {}
 
@@ -46,7 +47,14 @@ export class NomnomlTemplate implements Template {
     }
 
     public memberAssociation(association: MemberAssociation) {
-        return `${this.plainClassOrInterface(association.a.name)} ${association.a.multiplicity ?? ''} - ${association.b.multiplicity ?? ''} ${this.plainClassOrInterface(association.b.name)}`;
+        const parts = [
+            this.plainClassOrInterface(association.a.name),
+            association.a.multiplicity ?? '',
+            association.associationType === AssociationType.Association ? "-" : "--",
+            association.b.multiplicity ?? '',
+            this.plainClassOrInterface(association.b.name)
+        ];
+        return parts.join(" ");
     }
 
     private methodTemplate(method: MethodDetails): string {
