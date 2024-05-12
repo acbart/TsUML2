@@ -1,5 +1,7 @@
 <img src="./assets/logo.png" width="150" align="right" />
 
+This is based off of work by `demike`. I added dependency tracking. Maybe it even works!
+
 # TsUML2 [![npm version](https://badge.fury.io/js/tsuml2.svg)](https://badge.fury.io/js/tsuml2) [![Known Vulnerabilities](https://snyk.io/test/npm/tsuml2/badge.svg)](https://snyk.io/test/npm/tsuml2)
 
 Generate UML diagram for your TypeScript applications powered by nomnoml.
